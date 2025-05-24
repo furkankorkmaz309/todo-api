@@ -34,5 +34,29 @@ func Routes(app *app.App) http.Handler {
 		}
 	})
 
+	mux.HandleFunc("/todos", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		default:
+			http.Error(w, "Wrong method", http.StatusMethodNotAllowed)
+		case http.MethodGet:
+			handlers.GetTodos(app)(w, r)
+		case http.MethodPost:
+			handlers.CreateTodo(app)(w, r)
+		}
+	})
+
+	mux.HandleFunc("/todos/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		default:
+			http.Error(w, "Wrong method", http.StatusMethodNotAllowed)
+		case http.MethodGet:
+			handlers.GetTodo(app)(w, r)
+		case http.MethodPatch:
+			handlers.PatchTodo(app)(w, r)
+		case http.MethodDelete:
+			handlers.DeleteTodo(app)(w, r)
+		}
+	})
+
 	return mux
 }

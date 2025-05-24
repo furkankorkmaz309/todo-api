@@ -29,9 +29,10 @@ func main() {
 	defer db.Close()
 
 	addr := flag.String("addr", ":8080", "new http port")
+	flag.Parse()
 
 	mux := routes.Routes(app)
 
 	app.InfoLog.Println("Server running on port", *addr)
-	http.ListenAndServe(*addr, mux)
+	app.ErrorLog.Fatal(http.ListenAndServe(*addr, mux))
 }
