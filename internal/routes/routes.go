@@ -27,8 +27,8 @@ func Routes(app *app.App) http.Handler {
 		switch r.Method {
 		default:
 			http.Error(w, "Wrong method", http.StatusMethodNotAllowed)
-		case http.MethodPut:
-			handlers.UpdateCategory(app)(w, r)
+		case http.MethodPatch:
+			handlers.PatchCategory(app)(w, r)
 		case http.MethodDelete:
 			handlers.DeleteCategory(app)(w, r)
 		}

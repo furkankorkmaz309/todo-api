@@ -16,7 +16,7 @@ func GetCategories(app *app.App) http.HandlerFunc {
 		query := `SELECT id, name, description FROM category`
 		rows, err := app.DB.Query(query)
 		if err != nil {
-			fail(w, app.ErrorLog, "GetCategories", err, "Database error", http.StatusInternalServerError)
+			respondError(w, app.ErrorLog, http.StatusInternalServerError, "Database error", err)
 			return
 		}
 		defer rows.Close()
@@ -27,18 +27,13 @@ func GetCategories(app *app.App) http.HandlerFunc {
 			var category models.Category
 			err := rows.Scan(&category.ID, &category.Name, &category.Description)
 			if err != nil {
-				fail(w, app.ErrorLog, "GetCategories", err, "Row could not read", http.StatusInternalServerError)
+				respondError(w, app.ErrorLog, http.StatusInternalServerError, "Row scan error", err)
 				return
 			}
 			categories = append(categories, category)
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		err = json.NewEncoder(w).Encode(categories)
-		if err != nil {
-			fail(w, app.ErrorLog, "GetCategories", err, "JSON encoding error", http.StatusInternalServerError)
-			return
-		}
+		respondJSON(w, http.StatusOK, categories, "Categories listed successfully!")
 	}
 }
 
@@ -48,60 +43,49 @@ func AddCategory(app *app.App) http.HandlerFunc {
 		var input models.Category
 		err := json.NewDecoder(r.Body).Decode(&input)
 		if err != nil {
-			fail(w, app.ErrorLog, "AddCategory", err, "Invalid JSOn body", http.StatusBadRequest)
+			respondError(w, app.ErrorLog, http.StatusBadRequest, "Invalid JSON body", err)
 			return
 		}
 
-		// buraya errorlog yaz
 		if strings.TrimSpace(input.Name) == "" {
-			err := fmt.Errorf("name field is blank")
-			fail(w, app.ErrorLog, "AddCategory", err, err.Error(), http.StatusBadRequest)
+			respondError(w, app.ErrorLog, http.StatusBadRequest, "Name field is blank", fmt.Errorf("blank name"))
 			return
 		}
 
 		if len(input.Name) > 30 {
-			err := fmt.Errorf("name field is too long")
-			fail(w, app.ErrorLog, "AddCategory", err, err.Error(), http.StatusBadRequest)
+			respondError(w, app.ErrorLog, http.StatusBadRequest, "Name field is too long", nil)
 			return
 		}
 
 		if len(input.Description) > 100 {
-			err := fmt.Errorf("description field is too long")
-			fail(w, app.ErrorLog, "AddCategory", err, err.Error(), http.StatusBadRequest)
+			respondError(w, app.ErrorLog, http.StatusBadRequest, "Description field is too long", nil)
 			return
 		}
 
 		query := `INSERT INTO category (name, description) VALUES (?,?)`
 		result, err := app.DB.Exec(query, input.Name, input.Description)
 		if err != nil {
-			fail(w, app.ErrorLog, "AddCategory", err, "Database error", http.StatusInternalServerError)
+			respondError(w, app.ErrorLog, http.StatusInternalServerError, "Database error", err)
 			return
 		}
 
 		id, err := result.LastInsertId()
 		if err != nil {
-			fail(w, app.ErrorLog, "AddCategory", err, "Failed to retrieve inserted ID", http.StatusInternalServerError)
+			respondError(w, app.ErrorLog, http.StatusInternalServerError, "Failed to retrieve inserted ID", err)
 			return
 		}
 		input.ID = int(id)
 
-		// burada çakışma olabilir de bunu çözecek kafa yok bende
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		err = json.NewEncoder(w).Encode(input)
-		if err != nil {
-			fail(w, app.ErrorLog, "AddCategory", err, "JSON encoding error", http.StatusInternalServerError)
-			return
-		}
+		respondJSON(w, http.StatusCreated, input, "Category created successfully!")
 	}
 }
 
-func UpdateCategory(app *app.App) http.HandlerFunc {
+func PatchCategory(app *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		id, err := takeIDFromURL(r, 2)
 		if err != nil {
-			fail(w, app.ErrorLog, "UpdateCategory", err, err.Error(), http.StatusBadRequest)
+			respondError(w, app.ErrorLog, http.StatusBadRequest, "Invalid category ID", err)
 			return
 		}
 
@@ -111,89 +95,91 @@ func UpdateCategory(app *app.App) http.HandlerFunc {
 		var oldCategory models.Category
 		err = row.Scan(&oldCategory.ID, &oldCategory.Name, &oldCategory.Description)
 		if err != nil {
-			fail(w, app.ErrorLog, "UpdateCategory", err, "Row could not read", http.StatusInternalServerError)
+			respondError(w, app.ErrorLog, http.StatusNotFound, "Category not found", err)
 			return
 		}
 
 		var newCategory models.Category
 		err = json.NewDecoder(r.Body).Decode(&newCategory)
 		if err != nil {
-			fail(w, app.ErrorLog, "UpdateCategory", err, "Invalid JSON body", http.StatusBadRequest)
+			respondError(w, app.ErrorLog, http.StatusBadRequest, "Invalid JSON body", err)
 			return
 		}
 
+		responseString := "name, description updated!"
+
 		if len(newCategory.Name) > 30 {
-			err := fmt.Errorf("name field is too long")
-			fail(w, app.ErrorLog, "UpdateCategory", err, err.Error(), http.StatusBadRequest)
+			respondError(w, app.ErrorLog, http.StatusBadRequest, "Name is too long", nil)
 			return
 		}
 		if len(newCategory.Description) > 100 {
-			err := fmt.Errorf("description field is too long")
-			fail(w, app.ErrorLog, "UpdateCategory", err, err.Error(), http.StatusBadRequest)
+			respondError(w, app.ErrorLog, http.StatusBadRequest, "Description is too long", nil)
 			return
 		}
 		if strings.TrimSpace(newCategory.Name) == "" {
 			newCategory.Name = oldCategory.Name
+		} else {
+			responseString = strings.ReplaceAll(responseString, "name, ", "")
 		}
 		if strings.TrimSpace(newCategory.Description) == "" {
 			newCategory.Description = oldCategory.Description
+		} else {
+			responseString = strings.ReplaceAll(responseString, "description ", "")
+		}
+
+		if responseString == "updated!" {
+			respondError(w, app.ErrorLog, http.StatusBadRequest, "No fields provided for update", nil)
+			return
 		}
 
 		queryUpdate := `UPDATE category SET name = ?, description = ? WHERE id = ?`
 		result, err := app.DB.Exec(queryUpdate, newCategory.Name, newCategory.Description, id)
 		if err != nil {
-			fail(w, app.ErrorLog, "UpdateCategory", err, "Failed to update category", http.StatusInternalServerError)
+			respondError(w, app.ErrorLog, http.StatusInternalServerError, "Failed to update category", err)
 			return
 		}
 
 		rowsAffected, err := result.RowsAffected()
 		if err != nil {
-			fail(w, app.ErrorLog, "UpdateCategory", err, "Result not take", http.StatusInternalServerError)
+			respondError(w, app.ErrorLog, http.StatusInternalServerError, "Could not retrieve update result", err)
 			return
 		}
 
 		if rowsAffected == 0 {
-			err := fmt.Errorf("there is no category with ID %v", id)
-			fail(w, app.ErrorLog, "UpdateCategory", err, err.Error(), http.StatusNotFound)
+			respondError(w, app.ErrorLog, http.StatusNotFound, fmt.Sprintf("No category with ID %d", id), nil)
 			return
 		}
 
-		info := fmt.Sprintf("Category with ID %v updated!", id)
-		infoMap := map[string]string{
-			"message": info,
-		}
-		json.NewEncoder(w).Encode(infoMap)
+		respondJSON(w, http.StatusOK, newCategory, "Category updated successfully.")
 	}
 }
 
 func DeleteCategory(app *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		id, err := takeIDFromURL(r, 2)
 		if err != nil {
-			fail(w, app.ErrorLog, "DeleteCategory", err, err.Error(), http.StatusBadRequest)
+			respondError(w, app.ErrorLog, http.StatusBadRequest, "Invalid category ID", err)
 			return
 		}
 
 		query := `DELETE FROM category WHERE id = ?`
 		result, err := app.DB.Exec(query, id)
 		if err != nil {
-			fail(w, app.ErrorLog, "DeleteCategory", err, "Database error", http.StatusInternalServerError)
+			respondError(w, app.ErrorLog, http.StatusInternalServerError, "Database error", err)
 			return
 		}
 
 		rowsAffected, err := result.RowsAffected()
 		if err != nil {
-			fail(w, app.ErrorLog, "DeleteCategory", err, "Result not take", http.StatusInternalServerError)
+			respondError(w, app.ErrorLog, http.StatusInternalServerError, "Could not retrieve delete result", err)
 			return
 		}
 
 		if rowsAffected == 0 {
-			err := fmt.Errorf("there is no category with ID %v", id)
-			fail(w, app.ErrorLog, "DeleteCategory", err, err.Error(), http.StatusNotFound)
+			respondError(w, app.ErrorLog, http.StatusNotFound, fmt.Sprintf("No category with ID %d", id), nil)
 			return
 		}
 
-		w.WriteHeader(http.StatusNoContent)
+		respondSuccess(w, http.StatusOK, fmt.Sprintf("Category with ID %d deleted.", id))
 	}
 }

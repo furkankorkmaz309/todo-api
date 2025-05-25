@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,9 +17,4 @@ func takeIDFromURL(r *http.Request, index int) (int, error) {
 		return 0, fmt.Errorf("an error occurred while converting string to integer: %v", err)
 	}
 	return id, nil
-}
-
-func fail(w http.ResponseWriter, log *log.Logger, funcName string, err error, message string, statusCode int) {
-	log.Printf("%s error : %v", funcName, err)
-	http.Error(w, message, statusCode)
 }

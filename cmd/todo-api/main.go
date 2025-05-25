@@ -16,6 +16,10 @@ func main() {
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ltime|log.Ldate)
 
 	db, err := db.InitDB()
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+	defer db.Close()
 
 	app := &app.App{
 		InfoLog:  infoLog,
@@ -23,16 +27,21 @@ func main() {
 		DB:       db,
 	}
 
-	if err != nil {
-		app.ErrorLog.Fatal(err)
-	}
-	defer db.Close()
-
 	addr := flag.String("addr", ":8080", "new http port")
 	flag.Parse()
 
 	mux := routes.Routes(app)
 
+	srv := &http.Server{
+		Addr:    *addr,
+		Handler: mux,
+	}
+
 	app.InfoLog.Println("Server running on port", *addr)
-	app.ErrorLog.Fatal(http.ListenAndServe(*addr, mux))
+	go func() {
+		err = srv.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			app.ErrorLog.Fatalf("ListenAndServe(): %s", err)
+		}
+	}()
 }
