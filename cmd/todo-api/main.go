@@ -30,11 +30,11 @@ func main() {
 	addr := flag.String("addr", ":8080", "new http port")
 	flag.Parse()
 
-	mux := routes.Routes(app)
+	router := routes.Routes(app)
 
 	srv := &http.Server{
 		Addr:    *addr,
-		Handler: mux,
+		Handler: router,
 	}
 
 	app.InfoLog.Println("Server running on port", *addr)
@@ -44,4 +44,6 @@ func main() {
 			app.ErrorLog.Fatalf("ListenAndServe(): %s", err)
 		}
 	}()
+
+	select {} // ?
 }

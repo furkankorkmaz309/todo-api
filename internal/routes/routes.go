@@ -5,58 +5,28 @@ import (
 
 	"github.com/furkankorkmaz309/todo-api/internal/app"
 	"github.com/furkankorkmaz309/todo-api/internal/handlers"
+	"github.com/go-chi/chi"
 )
 
 func Routes(app *app.App) http.Handler {
-	mux := http.NewServeMux()
+	r := chi.NewRouter()
 
-	mux.HandleFunc("/", handlers.WelcomePage)
+	r.Get("/", handlers.WelcomePage)
 
-	mux.HandleFunc("/categories", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		default:
-			http.Error(w, "Wrong method", http.StatusMethodNotAllowed)
-		case http.MethodGet:
-			handlers.GetCategories(app)(w, r)
-		case http.MethodPost:
-			handlers.AddCategory(app)(w, r)
-		}
+	r.Route("/categories", func(r chi.Router) {
+		r.Get("", handlers.GetCategories(app))
+		r.Post("", handlers.AddCategory(app))
+		r.Patch("/{id}", handlers.PatchCategory(app))
+		r.Delete("/{id}", handlers.DeleteCategory(app))
 	})
 
-	mux.HandleFunc("/categories/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		default:
-			http.Error(w, "Wrong method", http.StatusMethodNotAllowed)
-		case http.MethodPatch:
-			handlers.PatchCategory(app)(w, r)
-		case http.MethodDelete:
-			handlers.DeleteCategory(app)(w, r)
-		}
+	r.Route("/todos", func(r chi.Router) {
+		r.Get("", handlers.GetTodos(app))
+		r.Post("", handlers.CreateTodo(app))
+		r.Get("/{id}", handlers.GetTodo(app))
+		r.Patch("/{id}", handlers.PatchTodo(app))
+		r.Delete("/{id}", handlers.DeleteTodo(app))
 	})
 
-	mux.HandleFunc("/todos", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		default:
-			http.Error(w, "Wrong method", http.StatusMethodNotAllowed)
-		case http.MethodGet:
-			handlers.GetTodos(app)(w, r)
-		case http.MethodPost:
-			handlers.CreateTodo(app)(w, r)
-		}
-	})
-
-	mux.HandleFunc("/todos/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		default:
-			http.Error(w, "Wrong method", http.StatusMethodNotAllowed)
-		case http.MethodGet:
-			handlers.GetTodo(app)(w, r)
-		case http.MethodPatch:
-			handlers.PatchTodo(app)(w, r)
-		case http.MethodDelete:
-			handlers.DeleteTodo(app)(w, r)
-		}
-	})
-
-	return mux
+	return r
 }

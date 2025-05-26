@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/furkankorkmaz309/todo-api/internal/app"
 	"github.com/furkankorkmaz309/todo-api/internal/models"
+	"github.com/go-chi/chi"
 )
 
 func GetTodos(app *app.App) http.HandlerFunc {
@@ -97,8 +99,10 @@ func CreateTodo(app *app.App) http.HandlerFunc {
 
 func GetTodo(app *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := takeIDFromURL(r, 2)
+		idStr := chi.URLParam(r, "id")
+		id, err := strconv.Atoi(idStr)
 		if err != nil {
+			err = fmt.Errorf("an error occurred while converting string to integer: %v", err)
 			respondError(w, app.ErrorLog, http.StatusBadRequest, "Invalid ID", err)
 			return
 		}
@@ -118,8 +122,10 @@ func GetTodo(app *app.App) http.HandlerFunc {
 
 func PatchTodo(app *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := takeIDFromURL(r, 2)
+		idStr := chi.URLParam(r, "id")
+		id, err := strconv.Atoi(idStr)
 		if err != nil {
+			err = fmt.Errorf("an error occurred while converting string to integer: %v", err)
 			respondError(w, app.ErrorLog, http.StatusBadRequest, "Invalid ID", err)
 			return
 		}
@@ -204,8 +210,10 @@ func PatchTodo(app *app.App) http.HandlerFunc {
 
 func DeleteTodo(app *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := takeIDFromURL(r, 2)
+		idStr := chi.URLParam(r, "id")
+		id, err := strconv.Atoi(idStr)
 		if err != nil {
+			err = fmt.Errorf("an error occurred while converting string to integer: %v", err)
 			respondError(w, app.ErrorLog, http.StatusBadRequest, "Invalid ID", err)
 			return
 		}
