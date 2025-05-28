@@ -14,9 +14,15 @@ import (
 	"github.com/go-chi/chi"
 )
 
-func GetTodos(app *app.App) http.HandlerFunc {
+func GetTodos(app *app.App, archived bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		query := `SELECT id, title, content, priority, created_at, due_date, done, category_id FROM todo`
+		var query string
+		if archived {
+			query = fmt.Sprintf(`SELECT id, title, content, priority, created_at, due_date, done, archived, category_id FROM todo WHERE archived = %v`, 1)
+		} else {
+			query = fmt.Sprintf(`SELECT id, title, content, priority, created_at, due_date, done, archived, category_id FROM todo WHERE archived = %v`, 0)
+		}
+
 		rows, err := app.DB.Query(query)
 		if err != nil {
 			respondError(w, app.ErrorLog, http.StatusInternalServerError, "Database error", err)
@@ -27,7 +33,7 @@ func GetTodos(app *app.App) http.HandlerFunc {
 		var todos []models.Todo
 		for rows.Next() {
 			var todo models.Todo
-			err = rows.Scan(&todo.ID, &todo.Title, &todo.Content, &todo.Priority, &todo.CreatedAt, &todo.DueDate, &todo.IsDone, &todo.CategoryID)
+			err = rows.Scan(&todo.ID, &todo.Title, &todo.Content, &todo.Priority, &todo.CreatedAt, &todo.DueDate, &todo.IsDone, &todo.Archived, &todo.CategoryID)
 			if err != nil {
 				respondError(w, app.ErrorLog, http.StatusInternalServerError, "Row could not read", err)
 				return
@@ -110,7 +116,7 @@ func GetTodo(app *app.App) http.HandlerFunc {
 		var todo models.Todo
 		query := `SELECT * FROM todo WHERE id = ?`
 		row := app.DB.QueryRow(query, id)
-		err = row.Scan(&todo.ID, &todo.Title, &todo.Content, &todo.Priority, &todo.CreatedAt, &todo.DueDate, &todo.IsDone, &todo.CategoryID)
+		err = row.Scan(&todo.ID, &todo.Title, &todo.Content, &todo.Priority, &todo.CreatedAt, &todo.DueDate, &todo.IsDone, &todo.Archived, &todo.CategoryID)
 		if err != nil {
 			respondError(w, app.ErrorLog, http.StatusNotFound, fmt.Sprintf("No todo with ID %v", id), err)
 			return
@@ -237,5 +243,24 @@ func DeleteTodo(app *app.App) http.HandlerFunc {
 		}
 
 		respondSuccess(w, http.StatusOK, fmt.Sprintf("Todo with ID %d deleted.", id))
+	}
+}
+
+func ArchiveFinished(app *app.App) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		query := `UPDATE todo SET archived = 1 WHERE done = 1 AND archived = 0`
+		result, err := app.DB.Exec(query)
+		if err != nil {
+			respondError(w, app.ErrorLog, http.StatusInternalServerError, "Database update error", err)
+			return
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			respondError(w, app.ErrorLog, http.StatusInternalServerError, "Could not determine update result", err)
+			return
+		}
+
+		respondSuccess(w, http.StatusOK, fmt.Sprintf("Archived %d finished todos.", rowsAffected))
 	}
 }

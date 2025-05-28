@@ -26,8 +26,10 @@ func Routes(app *app.App) http.Handler {
 	})
 
 	r.Route("/todos", func(r chi.Router) {
-		r.Get("/", handlers.GetTodos(app))
+		r.Get("/", handlers.GetTodos(app, false))
 		r.Post("/", handlers.CreateTodo(app))
+		r.Patch("/archivefinished", handlers.ArchiveFinished(app))
+		r.Get("/archived", handlers.GetTodos(app, true))
 		r.Get("/{id}", handlers.GetTodo(app))
 		r.Patch("/{id}", handlers.PatchTodo(app))
 		r.Delete("/{id}", handlers.DeleteTodo(app))

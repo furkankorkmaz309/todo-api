@@ -151,6 +151,8 @@ func PatchCategory(app *app.App) http.HandlerFunc {
 			return
 		}
 
+		newCategory.ID = id
+
 		respondJSON(w, http.StatusOK, newCategory, responseString)
 	}
 }

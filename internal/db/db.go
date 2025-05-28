@@ -37,6 +37,7 @@ func InitDB() (*sql.DB, error) {
 	created_at TIMESTAMP,
 	due_date TIMESTAMP,
 	done BOOLEAN DEFAULT 0,
+	archived BOOLEAN DEFAULT 0,
 	category_id INT,
 	FOREIGN KEY (category_id) REFERENCES category(id)
 	)`

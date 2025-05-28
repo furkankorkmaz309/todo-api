@@ -10,5 +10,6 @@ type Todo struct {
 	CreatedAt  time.Time `json:"created_at"`
 	DueDate    time.Time `json:"due_date"`
 	IsDone     bool      `json:"is_done"`
+	Archived   bool      `json:"archived"`
 	CategoryID int       `json:"category_id"`
 }
